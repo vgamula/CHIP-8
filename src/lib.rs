@@ -66,5 +66,9 @@ impl CPU {
         cpu
     }
 
+    pub fn say_hello(&self) {
+        println!("Hello, World!");
+    }
+
     // pub fn load(&self, )
 }
