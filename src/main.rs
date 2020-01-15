@@ -12,7 +12,6 @@ use rand;
 
 const MEMORY_SIZE: usize = 4096;
 const REGISTERS_COUNT: usize = 16;
-const GFX_SIZE: usize = 64 * 32;
 const STACK_SIZE: usize = 16;
 const KEYPAD_SIZE: usize = 16;
 
@@ -111,7 +110,6 @@ impl Chip8 {
         let scale: i32 = 10;
         for y in 0..32 {
             for x in 0..64 {
-                let pos = y * 32 + x;
                 let pixel = if self.gfx[y][x] == 1 { 255 } else { 0 };
                 self.canvas.set_draw_color(Color::RGB(pixel, pixel, pixel));
                 // refactor this mess
