@@ -114,10 +114,12 @@ impl Chip8 {
                 let pixel = if self.gfx[pos] == 1 { 255 } else { 0 };
                 self.canvas.set_draw_color(Color::RGB(pixel, pixel, pixel));
                 // refactor this mess
-                let rect = Rect::new(x as i32 * scale, y as i32 * scale, scale as u32, scale as u32);
-                if pixel == 255 {
-                    println!("{:?}", rect);
-                }
+                let rect = Rect::new(
+                    x as i32 * scale,
+                    y as i32 * scale,
+                    scale as u32,
+                    scale as u32,
+                );
                 self.canvas.fill_rect(rect).unwrap();
             }
         }
@@ -136,26 +138,30 @@ impl Chip8 {
     }
 
     fn get_n(&self) -> usize {
-        ((self.opcode & 0x00F0) >> 4) as usize
+        (self.opcode & 0x000F) as usize
     }
 
     fn get_kk(&self) -> u8 {
         ((self.opcode & 0x00FF) as u8)
     }
 
+    fn get_nnn(&self) -> u16 {
+        (self.opcode & 0x0FFF)
+    }
+
     pub fn emulate_cycle(&mut self) {
         self.opcode = (self.memory[self.pc] as u16) << 8 | (self.memory[self.pc + 1] as u16);
 
         match self.opcode & 0xF000 {
+            0x1000 => self.handle_1XXX(),
             0x3000 => self.handle_3XXX(),
+            0x6000 => self.handle_6XXX(),
+            0x7000 => self.handle_7XXX(),
             0xA000 => self.handle_AXXX(),
             0xC000 => self.handle_CXXX(),
             0xD000 => self.handle_DXXX(),
             _ => {
-                // continue;
-                // // self.pc += 2;
-                // println!("{:x}", self.opcode);
-                // panic!("Unhandled opcode {:x}", self.opcode);
+                panic!("Unhandled opcode {:x}", self.opcode);
             }
         }
 
@@ -170,11 +176,25 @@ impl Chip8 {
         self.update_screen();
     }
 
+    fn handle_1XXX(&mut self) {
+        self.pc = self.get_nnn() as usize;
+    }
+
     fn handle_3XXX(&mut self) {
         if self.V[self.get_x()] == self.get_kk() {
             self.pc += 2;
         }
         self.pc += 2;
+    }
+
+    fn handle_6XXX(&mut self) {
+        self.V[self.get_x()] = self.get_kk();
+        self.pc += 2
+    }
+
+    fn handle_7XXX(&mut self) {
+        self.V[self.get_x()] += self.get_kk();
+        self.pc += 2
     }
 
     fn handle_AXXX(&mut self) {
@@ -191,15 +211,15 @@ impl Chip8 {
     fn handle_DXXX(&mut self) {
         // slightly rewritten handling 0xDXYN from
         // http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/
-        let x = self.get_x();
-        let y = self.get_y();
+        let x = self.V[self.get_x()] as usize;
+        let y = self.V[self.get_y()] as usize;
         let height = self.get_n();
         let mut pixel: u8;
 
         self.V[0xF] = 0;
 
         for yline in 0..height {
-            let pixel = self.memory[(self.I as usize)+ yline];
+            pixel = self.memory[(self.I as usize) + yline];
             for xline in 0..8 {
                 if (pixel & (0x80 >> xline)) != 0 {
                     let pos = x + xline + (y + yline) * 64;
@@ -210,7 +230,6 @@ impl Chip8 {
                 }
             }
         }
-        
         self.draw_flag = true;
         self.pc += 2;
     }
