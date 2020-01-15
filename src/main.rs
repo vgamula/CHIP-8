@@ -22,7 +22,7 @@ pub struct Chip8 {
 
     memory: [u8; MEMORY_SIZE],
     V: [u8; REGISTERS_COUNT], // registers
-    I: u16, // Index counter
+    I: usize, // Index counter
 
     // pc: u16
     pc: usize,// program counter
@@ -30,7 +30,8 @@ pub struct Chip8 {
     delay_timer: u8,
     sound_timer: u8,
 
-    gfx: [u8; GFX_SIZE],  //  Graphic memory (pixel state)
+    // gfx: [u8; GFX_SIZE],  //  Graphic memory (pixel state)
+    gfx: [[u8; 64]; 32],
     draw_flag: bool,
 
     stack: [u16; STACK_SIZE],
@@ -70,7 +71,7 @@ impl Chip8 {
             pc: 0x200,
             delay_timer: 0,
             sound_timer: 0,
-            gfx: [0; GFX_SIZE],
+            gfx: [[0; 64]; 32],
             draw_flag: false,
             stack: [0; STACK_SIZE],
             sp: 0,
@@ -111,7 +112,7 @@ impl Chip8 {
         for y in 0..32 {
             for x in 0..64 {
                 let pos = y * 32 + x;
-                let pixel = if self.gfx[pos] == 1 { 255 } else { 0 };
+                let pixel = if self.gfx[y][x] == 1 { 255 } else { 0 };
                 self.canvas.set_draw_color(Color::RGB(pixel, pixel, pixel));
                 // refactor this mess
                 let rect = Rect::new(
@@ -153,6 +154,7 @@ impl Chip8 {
         self.opcode = (self.memory[self.pc] as u16) << 8 | (self.memory[self.pc + 1] as u16);
 
         match self.opcode & 0xF000 {
+            0x0000 => self.handle_0XXX(),
             0x1000 => self.handle_1XXX(),
             0x3000 => self.handle_3XXX(),
             0x6000 => self.handle_6XXX(),
@@ -174,6 +176,26 @@ impl Chip8 {
         }
 
         self.update_screen();
+    }
+
+    fn handle_0XXX(&mut self) {
+        match self.opcode & 0x00EF {
+            0x00E0 => self.handle_00E0(),
+            0x00EE => self.handle_00EE(),
+            _ => {
+                panic!("Not handled opcode {:x}", self.opcode);
+            }
+        }
+    }
+
+    fn handle_00E0(&mut self) {
+        self.gfx = [[0; 64]; 32];
+        self.draw_flag = true;
+        self.pc += 2;
+    }
+
+    fn handle_00EE(&mut self) {
+        panic!("Not handled 00EE");
     }
 
     fn handle_1XXX(&mut self) {
@@ -198,7 +220,7 @@ impl Chip8 {
     }
 
     fn handle_AXXX(&mut self) {
-        self.I = self.opcode & 0x0FFF;
+        self.I = self.get_nnn() as usize;
         self.pc += 2;
     }
 
@@ -209,27 +231,18 @@ impl Chip8 {
     }
 
     fn handle_DXXX(&mut self) {
-        // slightly rewritten handling 0xDXYN from
-        // http://www.multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/
-        let x = self.V[self.get_x()] as usize;
-        let y = self.V[self.get_y()] as usize;
-        let height = self.get_n();
-        let mut pixel: u8;
-
         self.V[0xF] = 0;
-
-        for yline in 0..height {
-            pixel = self.memory[(self.I as usize) + yline];
-            for xline in 0..8 {
-                if (pixel & (0x80 >> xline)) != 0 {
-                    let pos = x + xline + (y + yline) * 64;
-                    if self.gfx[pos] == 1 {
-                        self.V[0xF] = 1;
-                    }
-                    self.gfx[pos] ^= 1;
-                }
+        let n = self.get_n();
+        for byte in 0..n {
+            let y = (self.V[self.get_y()] as usize + byte) % 32;
+            for bit in 0..8 {
+                let x = (self.V[self.get_x()] as usize + bit) % 64;
+                let color = (self.memory[self.I + byte] >> (7 - bit)) & 1;
+                self.V[0xF] |= color & self.gfx[y][x];
+                self.gfx[y][x] ^= color;
             }
         }
+
         self.draw_flag = true;
         self.pc += 2;
     }
