@@ -109,11 +109,15 @@ impl Chip8 {
         }
 
         let scale: i32 = 10;
+        self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        self.canvas.fill_rect(Rect::new(0, 0, 640, 320)).unwrap();
+        let main_color = Color::RGB(255, 255, 255);
+        self.canvas.set_draw_color(main_color);
         for y in 0..32 {
             for x in 0..64 {
-                let pixel = if self.gfx[y][x] == 1 { 255 } else { 0 };
-                self.canvas.set_draw_color(Color::RGB(pixel, pixel, pixel));
-                // refactor this mess
+                if self.gfx[y][x] != 1 {
+                    continue;
+                }
                 let rect = Rect::new(
                     x as i32 * scale,
                     y as i32 * scale,
