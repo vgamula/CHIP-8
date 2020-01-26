@@ -1,6 +1,7 @@
 extern crate sdl2;
 
 use std::{thread, time};
+use std::time::{Instant, Duration};
 use std::io::Read;
 use std::fs::File;
 use sdl2::pixels::Color;
@@ -156,6 +157,8 @@ impl Chip8 {
     pub fn emulate_cycle(&mut self) {
         self.opcode = (self.memory[self.pc] as u16) << 8 | (self.memory[self.pc + 1] as u16);
 
+        let now = Instant::now();
+
         match self.opcode & 0xF000 {
             0x0000 => self.handle_0XXX(),
             0x1000 => self.handle_1XXX(),
@@ -184,6 +187,11 @@ impl Chip8 {
         }
 
         self.update_screen();
+
+        let ellapsed = now.elapsed().as_millis();
+        if ellapsed > 0 {
+            println!("{:x} {:?}", self.opcode, ellapsed)
+        }
 
         // println!("{:?}", self.delay_timer);
     }
