@@ -109,6 +109,8 @@ impl Chip8 {
             return;
         }
 
+        let now = Instant::now();
+
         let scale: i32 = 10;
         self.canvas.set_draw_color(Color::RGB(0, 0, 0));
         self.canvas.fill_rect(Rect::new(0, 0, 640, 320)).unwrap();
@@ -129,7 +131,11 @@ impl Chip8 {
             }
         }
 
+        println!("Loop {:?}", now.elapsed().as_millis());
+
         self.canvas.present();
+
+        println!("Updating screen {:?}", now.elapsed().as_millis());
 
         self.draw_flag = false;
     }
@@ -178,6 +184,8 @@ impl Chip8 {
             }
         }
 
+        let elapsed1 = now.elapsed().as_millis();
+
         if self.delay_timer > 0 {
             self.delay_timer -= 1;
         }
@@ -188,9 +196,9 @@ impl Chip8 {
 
         self.update_screen();
 
-        let ellapsed = now.elapsed().as_millis();
-        if ellapsed > 0 {
-            println!("{:x} {:?}", self.opcode, ellapsed)
+        let elapsed2 = now.elapsed().as_millis();
+        if elapsed2 > 0 {
+            println!("{:x} - instruction: {:?}, rendering: {:?}", self.opcode, elapsed1, elapsed2);
         }
 
         // println!("{:?}", self.delay_timer);
