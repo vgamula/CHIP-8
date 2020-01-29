@@ -113,7 +113,7 @@ impl Chip8 {
 
         let scale: i32 = 10;
         self.canvas.set_draw_color(Color::RGB(0, 0, 0));
-        self.canvas.fill_rect(Rect::new(0, 0, 640, 320)).unwrap();
+        self.canvas.clear();
         let main_color = Color::RGB(255, 255, 255);
         self.canvas.set_draw_color(main_color);
         for y in 0..32 {
