@@ -9,8 +9,8 @@ use sdl2::rect::Rect;
 
 use rand;
 
-mod keypad;
-use keypad::Keypad;
+mod input_driver;
+use input_driver::Keypad;
 
 const MEMORY_SIZE: usize = 4096;
 const REGISTERS_COUNT: usize = 16;
@@ -20,13 +20,12 @@ const GFX_HEIGHT: usize = 32;
 
 pub struct VideoDriver {
     canvas: sdl2::render::Canvas<sdl2::video::Window>,
-    event_pump: sdl2::EventPump,
     gfx: [[u8; GFX_WIDTH]; GFX_HEIGHT],
     draw_flag: bool,
 }
 
 impl VideoDriver {
-    pub fn new(sdl: sdl2::Sdl) -> VideoDriver {
+    pub fn new(sdl: &sdl2::Sdl) -> VideoDriver {
         let video_subsystem = sdl.video().unwrap();
         let _window = video_subsystem
             .window("CHIP-8", 640, 320)
@@ -34,12 +33,10 @@ impl VideoDriver {
             .build()
             .unwrap();
 
-        let event_pump = sdl.event_pump().unwrap();
 
         let canvas = _window.into_canvas().build().unwrap();
         VideoDriver {
             canvas,
-            event_pump,
             gfx: [[0; GFX_WIDTH]; GFX_HEIGHT],
             draw_flag: false,
         }
@@ -157,7 +154,7 @@ impl Chip8 {
         cpu
     }
 
-    pub fn load_game(&mut self, game_name: String) {
+    fn load_game(&mut self, game_name: String) {
         let mut f = File::open(game_name).unwrap();
 
         let mut buffer = Vec::new();
@@ -426,15 +423,10 @@ impl Chip8 {
         self.load_game(disk);
 
         'main: loop {
-            for event in self.video_driver.event_pump.poll_iter() {
-                match event {
-                    sdl2::event::Event::Quit { .. } => break 'main,
-                    sdl2::event::Event::KeyDown { keycode: Some(kc), .. } => self.keypad.press_key(kc),
-                    sdl2::event::Event::KeyUp { keycode: Some(kc), .. } => self.keypad.unpress_key(kc),
-                    _ => {}
-                }
+            match self.keypad.process_events() {
+                input_driver::EventProcessingState::Quit => break 'main,
+                _ => {}
             }
-    
             self.emulate_cycle();
     
             thread::sleep(Duration::from_millis(1)); // don't be too fast
@@ -446,16 +438,15 @@ fn main() {
     let sdl = sdl2::init().unwrap();
     
 
-    let keypad = Keypad::new();
+    let keypad = Keypad::new(&sdl);
 
 
-    let video_driver = VideoDriver::new(sdl);
+    let video_driver = VideoDriver::new(&sdl);
 
     let mut cpu = Chip8::new(video_driver, keypad);
-    // cpu.load_game("disks/MAZE".to_string());
-    // cpu.load_game("disks/PICTURE".to_string());
-    // cpu.load_game("disks/PONG".to_string());
     println!("Lift off!");
-
+    
+    // cpu.run_disk("disks/MAZE".to_string());
+    // cpu.run_disk("disks/PICTURE".to_string());
     cpu.run_disk("disks/PONG".to_string());
 }
