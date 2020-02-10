@@ -8,14 +8,15 @@ use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-use sdl2::keyboard::Keycode;
 
 use rand;
+
+mod keypad;
+use keypad::Keypad;
 
 const MEMORY_SIZE: usize = 4096;
 const REGISTERS_COUNT: usize = 16;
 const STACK_SIZE: usize = 16;
-const KEYPAD_SIZE: usize = 16;
 const GFX_WIDTH: usize = 64;
 const GFX_HEIGHT: usize = 32;
 
@@ -38,7 +39,7 @@ pub struct Chip8 {
     stack: [usize; STACK_SIZE],
     stack_pointer: usize,
 
-    key: [bool; KEYPAD_SIZE],  // pressed keys
+    pub keypad: Keypad,
 
     canvas: Canvas<Window>,
 }
@@ -63,7 +64,7 @@ const FONTSET: [u8; 80] = [
 ];
 
 impl Chip8 {
-    pub fn new(canvas: Canvas<Window>) -> Chip8 {
+    pub fn new(canvas: Canvas<Window>, keypad: Keypad) -> Chip8 {
         let mut cpu = Chip8 {
             memory: [0; MEMORY_SIZE],
             opcode: 0,
@@ -76,7 +77,7 @@ impl Chip8 {
             draw_flag: false,
             stack: [0; STACK_SIZE],
             stack_pointer: 0,
-            key: [false; KEYPAD_SIZE],
+            keypad,
             canvas,
         };
 
@@ -319,14 +320,16 @@ impl Chip8 {
     }
 
     fn handle_ex9e(&mut self) {
-        if self.key[self.registers[self.get_x()] as usize] {
+        let key = self.registers[self.get_x()] as usize;
+        if self.keypad.is_pressed(key) {
             self.pc += 2;
         }
         self.pc += 2;
     }
 
     fn handle_exa1(&mut self) {
-        if !self.key[self.registers[self.get_x()] as usize] {
+        let key = self.registers[self.get_x()] as usize;
+        if !self.keypad.is_pressed(key) {
             self.pc += 2;
         }
         self.pc += 2;
@@ -381,31 +384,6 @@ impl Chip8 {
         }
         self.pc += 2;
     }
-
-    fn set_key_state(&mut self, key: Keycode, pressed: bool) {
-        match key {
-            Keycode::Num1 => self.key[0x1] = pressed,
-            Keycode::Num2 => self.key[0x2] = pressed,
-            Keycode::Num3 => self.key[0x3] = pressed,
-            Keycode::Num4 => self.key[0xC] = pressed,
-            
-            Keycode::Q => self.key[0x4] = pressed,
-            Keycode::W => self.key[0x5] = pressed,
-            Keycode::E => self.key[0x6] = pressed,
-            Keycode::R => self.key[0xD] = pressed,
-            
-            Keycode::A => self.key[0x7] = pressed,
-            Keycode::S => self.key[0x8] = pressed,
-            Keycode::D => self.key[0x9] = pressed,
-            Keycode::F => self.key[0xE] = pressed,
-
-            Keycode::Z => self.key[0xA] = pressed,
-            Keycode::X => self.key[0x0] = pressed,
-            Keycode::C => self.key[0xB] = pressed,
-            Keycode::V => self.key[0xF] = pressed,
-            _ => ()
-        }
-    }
 }
 
 fn main() {
@@ -421,7 +399,9 @@ fn main() {
 
     let canvas = _window.into_canvas().build().unwrap();
 
-    let mut cpu = Chip8::new(canvas);
+    let keypad = Keypad::new();
+
+    let mut cpu = Chip8::new(canvas, keypad);
     // cpu.load_game("disks/MAZE".to_string());
     // cpu.load_game("disks/PICTURE".to_string());
     cpu.load_game("disks/PONG".to_string());
@@ -432,8 +412,8 @@ fn main() {
         for event in event_pump.poll_iter() {
             match event {
                 sdl2::event::Event::Quit { .. } => break 'main,
-                sdl2::event::Event::KeyDown { keycode: Some(kc), .. } => cpu.set_key_state(kc, true),
-                sdl2::event::Event::KeyUp { keycode: Some(kc), .. } => cpu.set_key_state(kc, false),
+                sdl2::event::Event::KeyDown { keycode: Some(kc), .. } => cpu.keypad.press_key(kc),
+                sdl2::event::Event::KeyUp { keycode: Some(kc), .. } => cpu.keypad.unpress_key(kc),
                 _ => {}
             }
         }
