@@ -6,8 +6,6 @@ use std::io::Read;
 use std::fs::File;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::render::Canvas;
-use sdl2::video::Window;
 
 use rand;
 
@@ -20,87 +18,34 @@ const STACK_SIZE: usize = 16;
 const GFX_WIDTH: usize = 64;
 const GFX_HEIGHT: usize = 32;
 
-
-pub struct Chip8 {
-    opcode: u16,
-
-    memory: [u8; MEMORY_SIZE],
-    registers: [u8; REGISTERS_COUNT],
-    index_counter: usize,
-
-    pc: usize, // program counter
-
-    delay_timer: u8,
-    sound_timer: u8,
-
+pub struct VideoDriver {
+    canvas: sdl2::render::Canvas<sdl2::video::Window>,
+    event_pump: sdl2::EventPump,
     gfx: [[u8; GFX_WIDTH]; GFX_HEIGHT],
     draw_flag: bool,
-
-    stack: [usize; STACK_SIZE],
-    stack_pointer: usize,
-
-    pub keypad: Keypad,
-
-    canvas: Canvas<Window>,
 }
 
-const FONTSET: [u8; 80] = [
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-];
+impl VideoDriver {
+    pub fn new(sdl: sdl2::Sdl) -> VideoDriver {
+        let video_subsystem = sdl.video().unwrap();
+        let _window = video_subsystem
+            .window("CHIP-8", 640, 320)
+            .position_centered()
+            .build()
+            .unwrap();
 
-impl Chip8 {
-    pub fn new(canvas: Canvas<Window>, keypad: Keypad) -> Chip8 {
-        let mut cpu = Chip8 {
-            memory: [0; MEMORY_SIZE],
-            opcode: 0,
-            registers: [0; REGISTERS_COUNT],
-            index_counter: 0,
-            pc: 0x200,
-            delay_timer: 0,
-            sound_timer: 0,
+        let event_pump = sdl.event_pump().unwrap();
+
+        let canvas = _window.into_canvas().build().unwrap();
+        VideoDriver {
+            canvas,
+            event_pump,
             gfx: [[0; GFX_WIDTH]; GFX_HEIGHT],
             draw_flag: false,
-            stack: [0; STACK_SIZE],
-            stack_pointer: 0,
-            keypad,
-            canvas,
-        };
-
-        for i in 0..80 {
-            cpu.memory[i] = FONTSET[i];
-        }
-        cpu.canvas.set_draw_color(Color::RGB(255, 255, 255));
-
-        cpu
-    }
-
-    pub fn load_game(&mut self, game_name: String) {
-        let mut f = File::open(game_name).unwrap();
-
-        let mut buffer = Vec::new();
-        f.read_to_end(&mut buffer).unwrap();
-
-        for i in 0..buffer.len() {
-            self.memory[0x200 + i] = buffer[i];
         }
     }
 
-    fn update_screen(&mut self) {
+    pub fn update_screen(&mut self) {
         if !self.draw_flag {
             return;
         }
@@ -130,30 +75,123 @@ impl Chip8 {
         self.draw_flag = false;
     }
 
+    pub fn reinitialize_screen(&mut self) {
+        self.gfx = [[0; GFX_WIDTH]; GFX_HEIGHT];
+        self.draw_flag = true;
+    }
+
+    pub fn pixel_state(&self, y: usize, x: usize) -> u8 {
+        self.gfx[y][x]
+    }
+
+    pub fn toggle_pixel_state(&mut self, y: usize, x: usize, color: u8) {
+        self.gfx[y][x] ^= color;
+    }
+
+    pub fn set_draw_flag(&mut self, flag: bool) {
+        self.draw_flag = flag;
+    }
+}
+
+
+pub struct Chip8 {
+    opcode: u16,
+
+    memory: [u8; MEMORY_SIZE],
+    registers: [u8; REGISTERS_COUNT],
+    index_counter: usize,
+
+    pc: usize, // program counter
+
+    delay_timer: u8,
+    sound_timer: u8,
+
+    stack: [usize; STACK_SIZE],
+    stack_pointer: usize,
+
+    pub keypad: Keypad,
+
+    video_driver: VideoDriver,
+}
+
+const FONTSET: [u8; 80] = [
+    0xf0, 0x90, 0x90, 0x90, 0xf0, // 0
+    0x20, 0x60, 0x20, 0x20, 0x70, // 1
+    0xf0, 0x10, 0xf0, 0x80, 0xf0, // 2
+    0xf0, 0x10, 0xf0, 0x10, 0xf0, // 3
+    0x90, 0x90, 0xf0, 0x10, 0x10, // 4
+    0xf0, 0x80, 0xf0, 0x10, 0xf0, // 5
+    0xf0, 0x80, 0xf0, 0x90, 0xf0, // 6
+    0xf0, 0x10, 0x20, 0x40, 0x40, // 7
+    0xf0, 0x90, 0xf0, 0x90, 0xf0, // 8
+    0xf0, 0x90, 0xf0, 0x10, 0xf0, // 9
+    0xf0, 0x90, 0xf0, 0x90, 0x90, // A
+    0xe0, 0x90, 0xe0, 0x90, 0xe0, // B
+    0xf0, 0x80, 0x80, 0x80, 0xf0, // C
+    0xe0, 0x90, 0x90, 0x90, 0xe0, // D
+    0xf0, 0x80, 0xf0, 0x80, 0xf0, // E
+    0xf0, 0x80, 0xf0, 0x80, 0x80  // F
+];
+
+impl Chip8 {
+    pub fn new(video_driver: VideoDriver, keypad: Keypad) -> Chip8 {
+        let mut cpu = Chip8 {
+            memory: [0; MEMORY_SIZE],
+            opcode: 0,
+            registers: [0; REGISTERS_COUNT],
+            index_counter: 0,
+            pc: 0x200,
+            delay_timer: 0,
+            sound_timer: 0,
+            
+            stack: [0; STACK_SIZE],
+            stack_pointer: 0,
+            keypad,
+            video_driver,
+        };
+
+        for i in 0..80 {
+            cpu.memory[i] = FONTSET[i];
+        }
+
+        cpu
+    }
+
+    pub fn load_game(&mut self, game_name: String) {
+        let mut f = File::open(game_name).unwrap();
+
+        let mut buffer = Vec::new();
+        f.read_to_end(&mut buffer).unwrap();
+
+        for i in 0..buffer.len() {
+            self.memory[0x200 + i] = buffer[i];
+        }
+    }
+
     fn get_x(&self) -> usize {
-        ((self.opcode & 0x0F00) >> 8) as usize
+        ((self.opcode & 0x0f00) >> 8) as usize
     }
 
     fn get_y(&self) -> usize {
-        ((self.opcode & 0x00F0) >> 4) as usize
+        ((self.opcode & 0x00f0) >> 4) as usize
     }
 
     fn get_n(&self) -> usize {
-        (self.opcode & 0x000F) as usize
+        (self.opcode & 0x000f) as usize
     }
 
     fn get_kk(&self) -> u8 {
-        ((self.opcode & 0x00FF) as u8)
+        ((self.opcode & 0x00ff) as u8)
     }
 
     fn get_nnn(&self) -> u16 {
-        (self.opcode & 0x0FFF)
+        (self.opcode & 0x0fff)
     }
 
     pub fn emulate_cycle(&mut self) {
         self.opcode = (self.memory[self.pc] as u16) << 8 | (self.memory[self.pc + 1] as u16);
 
-        match self.opcode & 0xF000 {
+        match self.opcode & 0xf000 {
             0x0000 => self.handle_0xxx(),
             0x1000 => self.handle_1xxx(),
             0x2000 => self.handle_2xxx(),
@@ -180,7 +218,7 @@ impl Chip8 {
             self.sound_timer -= 1;
         }
 
-        self.update_screen();
+        self.video_driver.update_screen();
     }
 
     fn handle_0xxx(&mut self) {
@@ -194,8 +232,7 @@ impl Chip8 {
     }
 
     fn handle_00e0(&mut self) {
-        self.gfx = [[0; GFX_WIDTH]; GFX_HEIGHT];
-        self.draw_flag = true;
+        self.video_driver.reinitialize_screen();
         self.pc += 2;
     }
 
@@ -242,7 +279,7 @@ impl Chip8 {
     }
 
     fn handle_8xxx(&mut self) {
-        match self.opcode & 0xF {
+        match self.opcode & 0xf {
             0x0 => self.handle_8xx0(),
             0x2 => self.handle_8xx2(),
             0x4 => self.handle_8xx4(),
@@ -269,15 +306,15 @@ impl Chip8 {
         let x = self.get_x();
         let y = self.get_y();
         let result = (self.registers[x] as u16) + (self.registers[y] as u16);
-        self.registers[x] = (result & 0xFF) as u8;
-        self.registers[0xF] = if result > 0xFF { 1 } else { 0 };
+        self.registers[x] = (result & 0xff) as u8;
+        self.registers[0xf] = if result > 0xff { 1 } else { 0 };
         self.pc += 2;
     }
 
     fn handle_8xx5(&mut self) {
         let x = self.get_x();
         let y = self.get_y();
-        self.registers[0xF] = if self.registers[x] > self.registers[y] { 1 } else { 0 };
+        self.registers[0xf] = if self.registers[x] > self.registers[y] { 1 } else { 0 };
         self.registers[x] = self.registers[x].wrapping_sub(self.registers[y]);
         self.pc += 2;
     }
@@ -294,18 +331,18 @@ impl Chip8 {
     }
 
     fn handle_dxxx(&mut self) {
-        self.registers[0xF] = 0;
+        self.registers[0xf] = 0;
         let n = self.get_n();
         for byte in 0..n {
             let y = (self.registers[self.get_y()] as usize + byte) % GFX_HEIGHT;
             for bit in 0..8 {
                 let x = (self.registers[self.get_x()] as usize + bit) % GFX_WIDTH;
                 let color = (self.memory[self.index_counter + byte] >> (7 - bit)) & 1;
-                self.registers[0xF] |= color & self.gfx[y][x];
-                self.gfx[y][x] ^= color;
+                self.registers[0xf] |= color & self.video_driver.pixel_state(y, x);
+                self.video_driver.toggle_pixel_state(y, x, color);
             }
         }
-        self.draw_flag = true;
+        self.video_driver.set_draw_flag(true);
         self.pc += 2;
     }
 
@@ -384,42 +421,41 @@ impl Chip8 {
         }
         self.pc += 2;
     }
+
+    fn run_disk(&mut self, disk: String) {
+        self.load_game(disk);
+
+        'main: loop {
+            for event in self.video_driver.event_pump.poll_iter() {
+                match event {
+                    sdl2::event::Event::Quit { .. } => break 'main,
+                    sdl2::event::Event::KeyDown { keycode: Some(kc), .. } => self.keypad.press_key(kc),
+                    sdl2::event::Event::KeyUp { keycode: Some(kc), .. } => self.keypad.unpress_key(kc),
+                    _ => {}
+                }
+            }
+    
+            self.emulate_cycle();
+    
+            thread::sleep(Duration::from_millis(1)); // don't be too fast
+        }
+    }
 }
 
 fn main() {
     let sdl = sdl2::init().unwrap();
-    let video_subsystem = sdl.video().unwrap();
-    let _window = video_subsystem
-        .window("CHIP-8", 640, 320)
-        .position_centered()
-        .build()
-        .unwrap();
-
-    let mut event_pump = sdl.event_pump().unwrap();
-
-    let canvas = _window.into_canvas().build().unwrap();
+    
 
     let keypad = Keypad::new();
 
-    let mut cpu = Chip8::new(canvas, keypad);
+
+    let video_driver = VideoDriver::new(sdl);
+
+    let mut cpu = Chip8::new(video_driver, keypad);
     // cpu.load_game("disks/MAZE".to_string());
     // cpu.load_game("disks/PICTURE".to_string());
-    cpu.load_game("disks/PONG".to_string());
-
+    // cpu.load_game("disks/PONG".to_string());
     println!("Lift off!");
 
-    'main: loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                sdl2::event::Event::Quit { .. } => break 'main,
-                sdl2::event::Event::KeyDown { keycode: Some(kc), .. } => cpu.keypad.press_key(kc),
-                sdl2::event::Event::KeyUp { keycode: Some(kc), .. } => cpu.keypad.unpress_key(kc),
-                _ => {}
-            }
-        }
-
-        cpu.emulate_cycle();
-
-        thread::sleep(Duration::from_millis(1)); // don't be too fast
-    }
+    cpu.run_disk("disks/PONG".to_string());
 }
