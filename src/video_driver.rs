@@ -1,11 +1,8 @@
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 
-// TODO: Remove duplications
-const GFX_WIDTH: usize = 64;
-const GFX_HEIGHT: usize = 32;
-
-
+pub const GFX_WIDTH: usize = 64;
+pub const GFX_HEIGHT: usize = 32;
 
 pub struct VideoDriver {
     canvas: sdl2::render::Canvas<sdl2::video::Window>,
@@ -78,5 +75,3 @@ impl VideoDriver {
         self.draw_flag = flag;
     }
 }
-
-

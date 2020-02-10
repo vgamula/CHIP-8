@@ -7,16 +7,16 @@ pub enum EventProcessingState {
     Void,
 }
 
-pub struct Keypad {
+pub struct InputDriver {
     keyboard: [bool; KEYPAD_SIZE],
     event_pump: sdl2::EventPump,
 }
 
-impl Keypad {
-    pub fn new(sdl: &sdl2::Sdl) -> Keypad {
+impl InputDriver {
+    pub fn new(sdl: &sdl2::Sdl) -> InputDriver {
         let event_pump = sdl.event_pump().unwrap();
 
-        Keypad {
+        InputDriver {
             keyboard: [false; KEYPAD_SIZE],
             event_pump,
         }
