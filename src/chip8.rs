@@ -31,7 +31,7 @@ const FONTSET: [u8; 80] = [
     0xf0, 0x80, 0xf0, 0x80, 0x80  // F
 ];
 
-pub struct Chip8 {
+pub struct Chip8<'a, 'b> {
     opcode: u16,
 
     memory: [u8; MEMORY_SIZE],
@@ -46,13 +46,12 @@ pub struct Chip8 {
     stack: [usize; STACK_SIZE],
     stack_pointer: usize,
 
-    input_driver: InputDriver,
-
-    video_driver: VideoDriver,
+    video_driver: &'a mut dyn VideoDriver,
+    input_driver: &'b mut dyn InputDriver,
 }
 
-impl Chip8 {
-    pub fn new(video_driver: VideoDriver, input_driver: InputDriver) -> Chip8 {
+impl<'a, 'b> Chip8<'a, 'b> {
+    pub fn new(video_driver: &'a mut dyn VideoDriver, input_driver: &'b mut dyn InputDriver) -> Chip8 <'a, 'b> {
         let mut cpu = Chip8 {
             memory: [0; MEMORY_SIZE],
             opcode: 0,
