@@ -79,7 +79,7 @@ where
         cpu
     }
 
-    fn load_game(&mut self, game_name: String) {
+    fn load_game(&mut self, game_name: &String) {
         let mut f = File::open(game_name).unwrap();
 
         let mut buffer = Vec::new();
@@ -348,7 +348,7 @@ where
         self.pc += 2;
     }
 
-    pub fn run_disk(&mut self, disk: String) {
+    pub fn run_disk(&mut self, disk: &String) {
         self.load_game(disk);
 
         'main: loop {
