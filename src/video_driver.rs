@@ -29,7 +29,6 @@ impl SdlVideoDriver {
             .build()
             .unwrap();
 
-
         let canvas = _window.into_canvas().build().unwrap();
         SdlVideoDriver {
             canvas,

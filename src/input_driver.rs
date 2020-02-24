@@ -14,8 +14,7 @@ pub trait InputDriver {
     fn process_events(&mut self) -> EventProcessingState;
 }
 
-
-// Sdl Input driver implementation
+// Sdl input driver implementation
 
 pub struct SdlInputDriver {
     keyboard: [bool; KEYPAD_SIZE],
@@ -45,12 +44,12 @@ fn sdl_keycode_to_chip8_keycode(key: Keycode) -> usize {
         Keycode::Num2 => 0x2,
         Keycode::Num3 => 0x3,
         Keycode::Num4 => 0xc,
-        
+
         Keycode::Q => 0x4,
         Keycode::W => 0x5,
         Keycode::E => 0x6,
         Keycode::R => 0xd,
-        
+
         Keycode::A => 0x7,
         Keycode::S => 0x8,
         Keycode::D => 0x9,
@@ -60,7 +59,7 @@ fn sdl_keycode_to_chip8_keycode(key: Keycode) -> usize {
         Keycode::X => 0x0,
         Keycode::C => 0xb,
         Keycode::V => 0xf,
-        _ => 0
+        _ => 0,
     }
 }
 
@@ -83,12 +82,12 @@ impl InputDriver for SdlInputDriver {
         for event in iter {
             match event {
                 sdl2::event::Event::Quit { .. } => return EventProcessingState::Quit,
-                sdl2::event::Event::KeyDown { keycode: Some(kc), .. } => {
-                    self.press_key(sdl_keycode_to_chip8_keycode(kc))
-                },
-                sdl2::event::Event::KeyUp { keycode: Some(kc), .. } => {
-                    self.unpress_key(sdl_keycode_to_chip8_keycode(kc))
-                },
+                sdl2::event::Event::KeyDown {
+                    keycode: Some(kc), ..
+                } => self.press_key(sdl_keycode_to_chip8_keycode(kc)),
+                sdl2::event::Event::KeyUp {
+                    keycode: Some(kc), ..
+                } => self.unpress_key(sdl_keycode_to_chip8_keycode(kc)),
                 _ => {}
             }
         }

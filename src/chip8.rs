@@ -1,11 +1,11 @@
+use std::fs::File;
+use std::io::Read;
 use std::thread;
 use std::time::Duration;
-use std::io::Read;
-use std::fs::File;
 
 use rand;
 
-use crate::input_driver::{InputDriver, EventProcessingState};
+use crate::input_driver::{EventProcessingState, InputDriver};
 use crate::video_driver::{VideoDriver, GFX_HEIGHT, GFX_WIDTH};
 
 const MEMORY_SIZE: usize = 4096;
@@ -28,10 +28,10 @@ const FONTSET: [u8; 80] = [
     0xf0, 0x80, 0x80, 0x80, 0xf0, // C
     0xe0, 0x90, 0x90, 0x90, 0xe0, // D
     0xf0, 0x80, 0xf0, 0x80, 0xf0, // E
-    0xf0, 0x80, 0xf0, 0x80, 0x80  // F
+    0xf0, 0x80, 0xf0, 0x80, 0x80, // F
 ];
 
-pub struct Chip8<'a, 'b> {
+pub struct Chip8<T1: VideoDriver, T2: InputDriver> {
     opcode: u16,
 
     memory: [u8; MEMORY_SIZE],
@@ -46,12 +46,16 @@ pub struct Chip8<'a, 'b> {
     stack: [usize; STACK_SIZE],
     stack_pointer: usize,
 
-    video_driver: &'a mut dyn VideoDriver,
-    input_driver: &'b mut dyn InputDriver,
+    video_driver: T1,
+    input_driver: T2,
 }
 
-impl<'a, 'b> Chip8<'a, 'b> {
-    pub fn new(video_driver: &'a mut dyn VideoDriver, input_driver: &'b mut dyn InputDriver) -> Chip8 <'a, 'b> {
+impl<T1, T2> Chip8<T1, T2>
+where
+    T1: VideoDriver,
+    T2: InputDriver,
+{
+    pub fn new(video_driver: T1, input_driver: T2) -> Chip8<T1, T2> {
         let mut cpu = Chip8 {
             memory: [0; MEMORY_SIZE],
             opcode: 0,
@@ -60,9 +64,10 @@ impl<'a, 'b> Chip8<'a, 'b> {
             pc: 0x200,
             delay_timer: 0,
             sound_timer: 0,
-            
+
             stack: [0; STACK_SIZE],
             stack_pointer: 0,
+
             input_driver,
             video_driver,
         };
@@ -231,7 +236,11 @@ impl<'a, 'b> Chip8<'a, 'b> {
     fn handle_8xx5(&mut self) {
         let x = self.get_x();
         let y = self.get_y();
-        self.registers[0xf] = if self.registers[x] > self.registers[y] { 1 } else { 0 };
+        self.registers[0xf] = if self.registers[x] > self.registers[y] {
+            1
+        } else {
+            0
+        };
         self.registers[x] = self.registers[x].wrapping_sub(self.registers[y]);
         self.pc += 2;
     }
