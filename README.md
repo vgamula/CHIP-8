@@ -7,11 +7,11 @@ This is an implementation of CHIP-8 virtual machine, written in Rust, based on [
 Using [rust-sdl2](https://github.com/Rust-SDL2/rust-sdl2) for graphics and keyboard input.
 
 #### Screenshots
-##### Maze
-![MAZE](screenshots/MAZE.png)
-
 ##### Pong
 ![PONG](screenshots/PONG.png)
+
+##### Maze
+![MAZE](screenshots/MAZE.png)
 
 ##### Picture
 ![PICTURE](screenshots/PICTURE.png)
