@@ -72,21 +72,21 @@ where
             video_driver,
         };
 
-        for i in 0..80 {
-            cpu.memory[i] = FONTSET[i];
+        for (i, item) in FONTSET.iter().enumerate() {
+            cpu.memory[i] = *item;
         }
 
         cpu
     }
 
-    fn load_game(&mut self, game_name: &String) {
+    fn load_game(&mut self, game_name: &str) {
         let mut f = File::open(game_name).unwrap();
 
         let mut buffer = Vec::new();
         f.read_to_end(&mut buffer).unwrap();
 
-        for i in 0..buffer.len() {
-            self.memory[0x200 + i] = buffer[i];
+        for (i, item) in buffer.iter().enumerate() {
+            self.memory[0x200 + i] = *item;
         }
     }
 
@@ -220,7 +220,7 @@ where
     fn handle_8xx2(&mut self) {
         let x = self.get_x();
         let y = self.get_y();
-        self.registers[x] = self.registers[x] & self.registers[y];
+        self.registers[x] &= self.registers[y];
         self.pc += 2;
     }
 
@@ -342,19 +342,18 @@ where
 
     fn handle_fx65(&mut self) {
         let x = self.get_x();
-        for i in 0..x + 1 {
+        for i in 0..=x {
             self.registers[i] = self.memory[self.index_counter + i];
         }
         self.pc += 2;
     }
 
-    pub fn run_disk(&mut self, disk: &String) {
+    pub fn run_disk(&mut self, disk: &str) {
         self.load_game(disk);
 
         'main: loop {
-            match self.input_driver.process_events() {
-                EventProcessingState::Quit => break 'main,
-                _ => {}
+            if let EventProcessingState::Quit = self.input_driver.process_events() {
+                break 'main;
             }
             self.emulate_cycle();
 
